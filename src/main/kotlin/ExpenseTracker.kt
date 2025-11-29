@@ -1,6 +1,8 @@
 import java.io.BufferedReader
 import java.io.InputStreamReader
 import java.io.File
+import java.time.LocalDate
+import java.time.format.DateTimeParseException
 
 class ExpenseTracker {
 
@@ -72,10 +74,32 @@ class ExpenseTracker {
         return readLineSafe()
     }
 
+    private fun isValidDate(date: String): Boolean {
+        return try {
+            LocalDate.parse(date)  // ISO_LOCAL_DATE = YYYY-MM-DD
+            true
+        } catch (e: DateTimeParseException) {
+            false
+        }
+    }
+
+    private fun readDate(prompt: String): String {
+        while (true) {
+            print(prompt)
+            val date = readLineSafe()
+
+            if (isValidDate(date)) {
+                return date
+            } else {
+                println("날짜 형식이 올바르지 않습니다. 예) 2025-11-29")
+            }
+        }
+    }
+
     private fun addExpense() {
         val amount = readInt("금액 입력: ")
         val memo = readStr("메모 입력: ")
-        val date = readStr("날짜 입력(YYYY-MM-DD): ")
+        val date = readDate("날짜 입력(YYYY-MM-DD): ")
 
         val expense = Expense(nextId++, amount, memo, date)
 
