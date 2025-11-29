@@ -112,13 +112,65 @@ class ExpenseTracker {
         }
     }
 
+    // CSV 필드 하나를 "..."로 감싸고, 내부의 따옴표는 ""로 이스케이프
+    private fun escapeCsvField(value: String): String {
+        val escaped = value.replace("\"", "\"\"")
+        return "\"$escaped\""
+    }
+
+    // 한 줄의 CSV를 파싱해서 필드 리스트로 분리
+    private fun parseCsvLine(line: String): List<String> {
+        val result = mutableListOf<String>()
+        val current = StringBuilder()
+        var inQuotes = false
+        var index = 0
+
+        while (index < line.length) {
+            val ch = line[index]
+
+            if (ch == '\"') {
+                if (inQuotes && index + 1 < line.length && line[index + 1] == '\"') {
+                    // "" -> " 로 해석
+                    current.append('\"')
+                    index += 1
+                } else {
+                    // 따옴표 열기/닫기 토글
+                    inQuotes = !inQuotes
+                }
+            } else if (ch == ',' && !inQuotes) {
+                // 따옴표 밖의 콤마는 필드 구분
+                result.add(current.toString())
+                current.clear()
+            } else {
+                current.append(ch)
+            }
+
+            index += 1
+        }
+
+        // 마지막 필드 추가
+        result.add(current.toString())
+        return result
+    }
+
     private fun saveToCsv() {
         val file = File("expenses.csv")
 
         file.printWriter().use { writer ->
             writer.println("id,amount,memo,date")
             expenses.forEach { expense ->
-                writer.println("${expense.id},${expense.amount},${expense.memo},${expense.date}")
+                val fields = listOf(
+                    expense.id.toString(),
+                    expense.amount.toString(),
+                    expense.memo,
+                    expense.date
+                )
+
+                val line = fields.joinToString(",") { field ->
+                    escapeCsvField(field)
+                }
+
+                writer.println(line)
             }
         }
 
@@ -137,12 +189,19 @@ class ExpenseTracker {
         expenses.clear()
 
         lines.forEach { line ->
-            val columns = line.split(",")
+            if (line.isBlank()) {
+                return@forEach
+            }
+
+            val columns = parseCsvLine(line)
             if (columns.size >= 4) {
-                val id = columns[0].toInt()
-                val amount = columns[1].toInt()
+                val idText = columns[0]
+                val amountText = columns[1]
                 val memo = columns[2]
                 val date = columns[3]
+
+                val id = idText.toInt()
+                val amount = amountText.toInt()
 
                 val expense = Expense(id, amount, memo, date)
                 expenses.add(expense)
